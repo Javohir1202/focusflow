@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,7 +8,17 @@ function isActive(pathname: string | null, href: string) {
   return pathname === href || (pathname?.startsWith(`${href}/`) ?? false);
 }
 
-export function NavLinks({ items }: { items: readonly { href: string; label: string }[] }) {
+export function NavLinks({
+  items,
+  settings,
+  extra,
+}: {
+  items: readonly { href: string; label: string }[];
+  /** Rendered as one more link at the end of the mobile dropdown — hidden on xl+, where PrivateNav shows it inline instead. */
+  settings?: { href: string; label: string };
+  /** Extra controls (language/theme toggles) rendered below the links in the mobile dropdown only. */
+  extra?: ReactNode;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -61,7 +71,19 @@ export function NavLinks({ items }: { items: readonly { href: string; label: str
                 {item.label}
               </Link>
             ))}
+            {settings && (
+              <Link
+                href={settings.href}
+                onClick={() => setOpen(false)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  isActive(pathname, settings.href) ? "bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                {settings.label}
+              </Link>
+            )}
           </div>
+          {extra && <div className="mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">{extra}</div>}
         </nav>
       )}
     </>

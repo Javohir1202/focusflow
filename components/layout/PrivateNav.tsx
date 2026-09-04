@@ -6,6 +6,7 @@ import { LanguageToggle } from "@/components/i18n/LanguageToggle";
 import { getLocale } from "@/lib/i18n/locale";
 import { getDictionary } from "@/lib/i18n/translations";
 import { NavLinks } from "./NavLinks";
+import { MobileNavExtras } from "./MobileNavExtras";
 
 export function PrivateNav({ userEmail }: { userEmail?: string | null }) {
   const dict = getDictionary(getLocale());
@@ -27,22 +28,32 @@ export function PrivateNav({ userEmail }: { userEmail?: string | null }) {
           <Link href="/dashboard" className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {SITE_NAME}
           </Link>
-          <NavLinks items={NAV_ITEMS} />
+          <NavLinks
+            items={NAV_ITEMS}
+            settings={{ href: "/settings", label: dict.nav.settings }}
+            extra={<MobileNavExtras />}
+          />
         </div>
 
         <div className="flex items-center gap-4">
-          {userEmail && <span className="hidden text-sm text-slate-500 dark:text-slate-400 xl:inline">{userEmail}</span>}
-          <LanguageToggle />
-          <ThemeToggle />
-          <Link href="/settings" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-300">
-            {dict.nav.settings}
-          </Link>
+          <div className="hidden items-center gap-4 xl:flex">
+            {userEmail && <span className="text-sm text-slate-500 dark:text-slate-400">{userEmail}</span>}
+            <LanguageToggle />
+            <ThemeToggle />
+            <Link href="/settings" className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-300">
+              {dict.nav.settings}
+            </Link>
+          </div>
           <form action={signOut}>
             <button
               type="submit"
-              className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              aria-label={dict.nav.signOut}
+              className="flex h-9 items-center justify-center rounded-full border border-slate-300 dark:border-slate-700 px-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 xl:px-3"
             >
-              {dict.nav.signOut}
+              <svg viewBox="0 0 24 24" className="h-4 w-4 xl:hidden" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+              <span className="hidden xl:inline">{dict.nav.signOut}</span>
             </button>
           </form>
         </div>

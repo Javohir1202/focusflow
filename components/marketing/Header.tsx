@@ -30,20 +30,22 @@ export function Header() {
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-300"
-          >
-            {dict.nav.logIn}
-          </Link>
+          <div className="hidden items-center gap-3 md:flex">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-300"
+            >
+              {dict.nav.logIn}
+            </Link>
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
           <Link
             href="/signup"
             className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
           >
             {dict.nav.getStarted}
           </Link>
-          <LanguageToggle />
-          <ThemeToggle />
           <MobileMenu />
         </div>
       </nav>
