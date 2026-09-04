@@ -26,6 +26,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# personal scratch notes for resuming Claude chats — not part of the app
+CONTINUE_PROMPT*.md
+
 # vercel
 .vercel
 
