@@ -126,12 +126,14 @@ plain read with no validation/mutation to encapsulate.
 - The homepage's feature visuals are static images in
   `public/illustrations/`, rendered via `next/image`
 
-## What's stubbed / left to finish
+## What's left to finish
 
-- Analytics and Settings pages are still UI shells (not linked from the
-  private nav; reachable only by direct URL, and behind auth)
-- No automated test suite yet
-- No seed/demo data script — a fresh account starts completely empty
+- Nothing is stubbed — Analytics and Settings are real pages linked from
+  the private nav, and Leads/Customers/Jobs/Tasks/Appointments all have
+  full CRUD wired to Supabase
+- `supabase/seed.sql` adds demo data (customers/leads/jobs/tasks/
+  appointments, prefixed `"Demo — "` for easy cleanup) — run it against
+  a project that doesn't already have data you want to keep
 - Deployment: connect the repo to Vercel, set the env vars in the Vercel
   dashboard (not in git), point the custom domain, set
   `NEXT_PUBLIC_APP_URL` to the production domain
