@@ -8,7 +8,6 @@ export function OrganizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: APP_URL,
-    logo: `${APP_URL}/logo.png`,
   };
   return (
     <script

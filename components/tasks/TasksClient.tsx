@@ -2,32 +2,38 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { createTask, deleteTask, setTaskStatus, updateTask } from "@/lib/actions/tasks";
-import type { Project, Task, TaskStatus } from "@/lib/database.types";
+import type { Customer, Job, Task, TaskStatus } from "@/lib/database.types";
+import { useTranslation } from "@/components/i18n/LanguageProvider";
+import type { Dictionary } from "@/lib/i18n/translations";
 import { TaskForm, type TaskFormValues } from "./TaskForm";
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  todo: "To do",
-  in_progress: "In progress",
-  done: "Done",
-};
 
 const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "done"];
 
 const PRIORITY_STYLE: Record<string, string> = {
-  low: "bg-slate-100 text-slate-600",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-red-100 text-red-700",
+  low: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
+  medium: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400",
+  high: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400",
 };
+
+const PRIORITY_KEY = {
+  low: "priorityLow",
+  medium: "priorityMedium",
+  high: "priorityHigh",
+} as const;
 
 export function TasksClient({
   initialTasks,
-  projects,
-  initialProjectFilter,
+  jobs,
+  customers,
+  initialJobFilter,
 }: {
   initialTasks: Task[];
-  projects: Project[];
-  initialProjectFilter: string;
+  jobs: Job[];
+  customers: Customer[];
+  initialJobFilter: string;
 }) {
+  const { dict } = useTranslation();
+  const [tasks, setTasks] = useState(initialTasks);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -36,15 +42,15 @@ export function TasksClient({
   const [, startTransition] = useTransition();
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
-  const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter);
+  const [jobFilter, setJobFilter] = useState<string>(initialJobFilter);
 
-  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const jobById = useMemo(() => new Map(jobs.map((j) => [j.id, j])), [jobs]);
 
-  const filteredTasks = initialTasks.filter((task) => {
+  const filteredTasks = tasks.filter((task) => {
     if (statusFilter !== "all" && task.status !== statusFilter) return false;
-    if (projectFilter === "all") return true;
-    if (projectFilter === "unassigned") return !task.project_id;
-    return task.project_id === projectFilter;
+    if (jobFilter === "all") return true;
+    if (jobFilter === "unassigned") return !task.job_id;
+    return task.job_id === jobFilter;
   });
 
   function handleCreate(values: TaskFormValues) {
@@ -53,10 +59,11 @@ export function TasksClient({
     startTransition(async () => {
       const result = await createTask(values);
       setCreating(false);
-      if (result.error) {
-        setError(result.error);
+      if (result.error || !result.data) {
+        setError(result.error ?? dict.tasks.failedCreate);
         return;
       }
+      setTasks((prev) => [result.data!, ...prev]);
       setShowCreateForm(false);
     });
   }
@@ -70,15 +77,18 @@ export function TasksClient({
         title: values.title,
         description: values.description ?? null,
         priority: values.priority,
-        projectId: values.projectId ?? null,
+        jobId: values.jobId ?? null,
+        customerId: values.customerId ?? null,
+        assignee: values.assignee ?? null,
         deadline: values.deadline ?? null,
         estimatedMinutes: values.estimatedMinutes ?? null,
       });
       setPendingId(null);
-      if (result.error) {
-        setError(result.error);
+      if (result.error || !result.data) {
+        setError(result.error ?? dict.tasks.failedUpdate);
         return;
       }
+      setTasks((prev) => prev.map((t) => (t.id === id ? result.data! : t)));
       setEditingId(null);
     });
   }
@@ -90,18 +100,26 @@ export function TasksClient({
     startTransition(async () => {
       const result = await setTaskStatus(task.id, STATUS_ORDER[nextIndex]);
       setPendingId(null);
-      if (result.error) setError(result.error);
+      if (result.error || !result.data) {
+        setError(result.error ?? dict.tasks.failedStatus);
+        return;
+      }
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? result.data! : t)));
     });
   }
 
   function handleDelete(task: Task) {
-    if (!window.confirm(`Delete "${task.title}"? This can't be undone.`)) return;
+    if (!window.confirm(dict.tasks.deleteConfirm.replace("{name}", task.title))) return;
     setError(null);
     setPendingId(task.id);
     startTransition(async () => {
       const result = await deleteTask(task.id);
       setPendingId(null);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setTasks((prev) => prev.filter((t) => t.id !== task.id));
     });
   }
 
@@ -112,81 +130,83 @@ export function TasksClient({
           onClick={() => setShowCreateForm((v) => !v)}
           className="rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700"
         >
-          {showCreateForm ? "Cancel" : "+ New task"}
+          {showCreateForm ? dict.common.cancel : dict.tasks.newTask}
         </button>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "all")}
-          className="rounded-full border border-slate-300 px-3 py-2 text-sm"
+          className="rounded-full border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm"
         >
-          <option value="all">All statuses</option>
-          <option value="todo">To do</option>
-          <option value="in_progress">In progress</option>
-          <option value="done">Done</option>
+          <option value="all">{dict.common.allStatuses}</option>
+          <option value="todo">{dict.taskStatus.todo}</option>
+          <option value="in_progress">{dict.taskStatus.in_progress}</option>
+          <option value="done">{dict.taskStatus.done}</option>
         </select>
 
         <select
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-          className="rounded-full border border-slate-300 px-3 py-2 text-sm"
+          value={jobFilter}
+          onChange={(e) => setJobFilter(e.target.value)}
+          className="rounded-full border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm"
         >
-          <option value="all">All projects</option>
-          <option value="unassigned">No project</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+          <option value="all">{dict.common.allJobs}</option>
+          <option value="unassigned">{dict.common.unassigned}</option>
+          {jobs.map((j) => (
+            <option key={j.id} value={j.id}>
+              {j.title}
             </option>
           ))}
         </select>
       </div>
 
       {error && (
-        <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+        <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-500/15 p-3 text-sm text-red-700 dark:text-red-400" role="alert">
           {error}
         </div>
       )}
 
       {showCreateForm && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <TaskForm
-            projects={projects}
+            jobs={jobs}
+            customers={customers}
             onSubmit={handleCreate}
-            submitLabel="Create task"
+            submitLabel={dict.tasks.createTask}
             disabled={creating}
           />
         </div>
       )}
 
-      {initialTasks.length === 0 && !showCreateForm ? (
-        <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-          <p className="font-medium text-slate-700">No tasks yet</p>
-          <p className="mt-1 text-sm text-slate-500">Create your first task to get started.</p>
+      {tasks.length === 0 && !showCreateForm ? (
+        <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:bg-slate-950 p-10 text-center">
+          <p className="font-medium text-slate-700 dark:text-slate-300">{dict.tasks.emptyNoneTitle}</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{dict.tasks.emptyNoneSubtitle}</p>
         </div>
       ) : filteredTasks.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-          <p className="font-medium text-slate-700">No tasks match these filters</p>
+        <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:bg-slate-950 p-10 text-center">
+          <p className="font-medium text-slate-700 dark:text-slate-300">{dict.tasks.emptyFilteredTitle}</p>
           <button
             onClick={() => {
               setStatusFilter("all");
-              setProjectFilter("all");
+              setJobFilter("all");
             }}
-            className="mt-2 text-sm font-medium text-brand-700 hover:underline"
+            className="mt-2 text-sm font-medium text-brand-700 dark:text-brand-300 hover:underline"
           >
-            Clear filters
+            {dict.tasks.clearFilters}
           </button>
         </div>
       ) : (
         <ul className="mt-8 space-y-3">
           {filteredTasks.map((task) =>
             editingId === task.id ? (
-              <li key={task.id} className="rounded-xl border border-slate-200 bg-white p-5">
+              <li key={task.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
                 <TaskForm
                   initialValues={task}
-                  projects={projects}
+                  jobs={jobs}
+                  customers={customers}
                   onSubmit={(values) => handleUpdate(task.id, values)}
                   onCancel={() => setEditingId(null)}
-                  submitLabel="Save"
+                  submitLabel={dict.common.save}
                   disabled={pendingId === task.id}
                 />
               </li>
@@ -194,8 +214,9 @@ export function TasksClient({
               <TaskRow
                 key={task.id}
                 task={task}
-                project={task.project_id ? projectById.get(task.project_id) : undefined}
+                job={task.job_id ? jobById.get(task.job_id) : undefined}
                 pending={pendingId === task.id}
+                dict={dict}
                 onCycleStatus={() => handleCycleStatus(task)}
                 onEdit={() => setEditingId(task.id)}
                 onDelete={() => handleDelete(task)}
@@ -210,15 +231,17 @@ export function TasksClient({
 
 function TaskRow({
   task,
-  project,
+  job,
   pending,
+  dict,
   onCycleStatus,
   onEdit,
   onDelete,
 }: {
   task: Task;
-  project?: Project;
+  job?: Job;
   pending: boolean;
+  dict: Dictionary;
   onCycleStatus: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -228,13 +251,13 @@ function TaskRow({
 
   return (
     <li
-      className={`flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 ${
+      className={`flex items-start gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 ${
         pending ? "pointer-events-none opacity-70" : ""
       }`}
     >
       <button
         onClick={onCycleStatus}
-        title={`Status: ${STATUS_LABEL[task.status]} (click to advance)`}
+        title={`${dict.taskStatus[task.status]}`}
         className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 ${
           task.status === "done"
             ? "border-brand-600 bg-brand-600"
@@ -247,42 +270,44 @@ function TaskRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`font-medium text-slate-900 ${task.status === "done" ? "line-through text-slate-400" : ""}`}
+            className={`font-medium text-slate-900 dark:text-slate-100 ${task.status === "done" ? "line-through text-slate-400 dark:text-slate-500" : ""}`}
           >
             {task.title}
           </span>
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_STYLE[task.priority]}`}>
-            {task.priority}
+            {dict.common[PRIORITY_KEY[task.priority]]}
           </span>
-          {project && (
-            <span
-              className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
-            >
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: project.color }} />
-              {project.name}
+          {job && (
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">
+              {job.title}
+            </span>
+          )}
+          {task.assignee && (
+            <span className="rounded-full bg-brand-50 dark:bg-brand-500/15 px-2 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300">
+              {task.assignee}
             </span>
           )}
           {overdue && (
-            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-              Overdue
+            <span className="rounded-full bg-red-100 dark:bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">
+              {dict.tasks.overdue}
             </span>
           )}
         </div>
 
-        {task.description && <p className="mt-1 text-sm text-slate-600">{task.description}</p>}
+        {task.description && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{task.description}</p>}
 
-        <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
-          {task.deadline && <span>Due {new Date(task.deadline).toLocaleString()}</span>}
+        <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
+          {task.deadline && <span>{dict.tasks.due} {new Date(task.deadline).toLocaleString()}</span>}
           {task.estimated_minutes && <span>{task.estimated_minutes} min</span>}
         </div>
       </div>
 
       <div className="flex shrink-0 gap-3 text-sm">
-        <button onClick={onEdit} className="font-medium text-brand-700 hover:underline">
-          Edit
+        <button onClick={onEdit} className="font-medium text-brand-700 dark:text-brand-300 hover:underline">
+          {dict.common.edit}
         </button>
-        <button onClick={onDelete} className="font-medium text-red-600 hover:underline">
-          Delete
+        <button onClick={onDelete} className="font-medium text-red-600 dark:text-red-400 hover:underline">
+          {dict.common.delete}
         </button>
       </div>
     </li>

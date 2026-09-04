@@ -1,16 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import type { Project, Task, TaskPriority } from "@/lib/database.types";
+import type { Customer, Job, Task, TaskPriority } from "@/lib/database.types";
+import { useTranslation } from "@/components/i18n/LanguageProvider";
 
 export type TaskFormValues = {
   title: string;
   description?: string;
   priority: TaskPriority;
-  projectId?: string;
+  jobId?: string;
+  customerId?: string;
+  assignee?: string;
   deadline?: string; // datetime-local string, "" clears it
   estimatedMinutes?: number;
 };
+
+const PRIORITY_KEY = {
+  low: "priorityLow",
+  medium: "priorityMedium",
+  high: "priorityHigh",
+} as const;
 
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return "";
@@ -23,23 +32,28 @@ function toDatetimeLocal(iso: string | null): string {
 
 export function TaskForm({
   initialValues,
-  projects,
+  jobs,
+  customers,
   onSubmit,
   onCancel,
   submitLabel,
   disabled,
 }: {
   initialValues?: Task;
-  projects: Project[];
+  jobs: Job[];
+  customers: Customer[];
   onSubmit: (values: TaskFormValues) => void;
   onCancel?: () => void;
   submitLabel: string;
   disabled?: boolean;
 }) {
+  const { dict } = useTranslation();
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [description, setDescription] = useState(initialValues?.description ?? "");
   const [priority, setPriority] = useState<TaskPriority>(initialValues?.priority ?? "medium");
-  const [projectId, setProjectId] = useState(initialValues?.project_id ?? "");
+  const [jobId, setJobId] = useState(initialValues?.job_id ?? "");
+  const [customerId, setCustomerId] = useState(initialValues?.customer_id ?? "");
+  const [assignee, setAssignee] = useState(initialValues?.assignee ?? "");
   const [deadline, setDeadline] = useState(toDatetimeLocal(initialValues?.deadline ?? null));
   const [estimatedMinutes, setEstimatedMinutes] = useState(
     initialValues?.estimated_minutes != null ? String(initialValues.estimated_minutes) : ""
@@ -50,12 +64,12 @@ export function TaskForm({
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) {
-      setFormError("Title is required.");
+      setFormError(dict.taskForm.titleRequired);
       return;
     }
     const minutes = estimatedMinutes.trim() ? Number(estimatedMinutes) : undefined;
     if (minutes !== undefined && (!Number.isInteger(minutes) || minutes <= 0)) {
-      setFormError("Estimated minutes must be a positive whole number.");
+      setFormError(dict.taskForm.minutesPositive);
       return;
     }
     setFormError(null);
@@ -63,7 +77,9 @@ export function TaskForm({
       title: trimmed,
       description: description.trim(),
       priority,
-      projectId: projectId || undefined,
+      jobId: jobId || undefined,
+      customerId: customerId || undefined,
+      assignee: assignee.trim(),
       deadline,
       estimatedMinutes: minutes,
     });
@@ -72,85 +88,111 @@ export function TaskForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-slate-700">Title</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.title}</label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
           required
           autoFocus
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-          placeholder="e.g. Draft the Q3 report"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+          placeholder={dict.taskForm.titlePlaceholder}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Description</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.description}</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           maxLength={2000}
           rows={2}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-          placeholder="Optional"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+          placeholder={dict.common.optional}
         />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-slate-700">Priority</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.priority}</label>
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
           >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            <option value="low">{dict.common[PRIORITY_KEY.low]}</option>
+            <option value="medium">{dict.common[PRIORITY_KEY.medium]}</option>
+            <option value="high">{dict.common[PRIORITY_KEY.high]}</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700">Project</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.job}</label>
           <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+            value={jobId}
+            onChange={(e) => setJobId(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
           >
-            <option value="">No project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            <option value="">{dict.taskForm.noJob}</option>
+            {jobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700">Deadline</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.customer}</label>
+          <select
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+          >
+            <option value="">{dict.taskForm.noCustomer}</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.assignee}</label>
           <input
-            type="datetime-local"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+            value={assignee}
+            onChange={(e) => setAssignee(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+            placeholder={dict.common.optional}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700">Estimated minutes</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.deadline}</label>
+          <input
+            type="datetime-local"
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{dict.taskForm.estimatedMinutes}</label>
           <input
             type="number"
             min={1}
             max={1440}
             value={estimatedMinutes}
             onChange={(e) => setEstimatedMinutes(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-            placeholder="e.g. 30"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+            placeholder={dict.taskForm.estimatedMinutesPlaceholder}
           />
         </div>
       </div>
 
-      {formError && <p className="text-sm text-red-600">{formError}</p>}
+      {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
 
       <div className="flex gap-3 pt-1">
         <button
@@ -158,15 +200,15 @@ export function TaskForm({
           disabled={disabled}
           className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {disabled ? "Saving..." : submitLabel}
+          {disabled ? dict.common.saving : submitLabel}
         </button>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            Cancel
+            {dict.common.cancel}
           </button>
         )}
       </div>

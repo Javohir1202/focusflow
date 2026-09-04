@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 import { APP_URL, PUBLIC_ROUTES } from "@/lib/config";
 
 // Only public, indexable routes belong here. Private routes
-// (/dashboard, /tasks, /projects, /ai-planner, /analytics, /settings)
-// must never appear in the sitemap.
+// (/dashboard, /customers, /leads, /jobs, /tasks, /appointments,
+// /analytics, /settings) must never appear in the sitemap.
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
