@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { APP_URL, SITE_DESCRIPTION } from "@/lib/config";
+import Image from "next/image";
+import { APP_URL, SITE_DESCRIPTION, SITE_NAME } from "@/lib/config";
+import { getLocale } from "@/lib/i18n/locale";
+import { getDictionary } from "@/lib/i18n/translations";
 import { Header } from "@/components/marketing/Header";
 import { Footer } from "@/components/marketing/Footer";
 import { Hero } from "@/components/marketing/Hero";
@@ -8,17 +11,19 @@ import { HowItWorks, Testimonials, Faq, FinalCta } from "@/components/marketing/
 import { SoftwareApplicationJsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "FocusFlow — AI Productivity Dashboard",
+  title: `${SITE_NAME} — CRM for service businesses`,
   description: SITE_DESCRIPTION,
   alternates: { canonical: APP_URL },
   openGraph: {
     url: APP_URL,
-    title: "FocusFlow — AI Productivity Dashboard",
+    title: `${SITE_NAME} — CRM for service businesses`,
     description: SITE_DESCRIPTION,
   },
 };
 
 export default function HomePage() {
+  const dict = getDictionary(getLocale());
+
   return (
     <>
       <SoftwareApplicationJsonLd />
@@ -28,84 +33,84 @@ export default function HomePage() {
 
         <FeatureSection
           id="features"
-          eyebrow="Features"
-          heading="Everything you need to stay focused"
-          description="Tasks, projects, and AI planning, all in one clean dashboard."
+          eyebrow={dict.home.featureCustomersEyebrow}
+          heading={dict.home.featureCustomersHeading}
+          description={dict.home.featureCustomersDescription}
           bullets={[
-            "Unified task and project view",
-            "Deadline and priority tracking",
-            "Cross-device sync",
-            "Built-in productivity analytics",
+            dict.home.featureCustomersBullet1,
+            dict.home.featureCustomersBullet2,
+            dict.home.featureCustomersBullet3,
           ]}
-          imageSrc="/features-overview.png"
-          imageAlt="Overview of the FocusFlow dashboard showing tasks, projects, and priorities"
+          visual={
+            <Image
+              src="/illustrations/customers.jpg"
+              alt="Customer record with contact details, linked jobs, and activity history"
+              width={1168}
+              height={784}
+              className="h-auto w-full"
+            />
+          }
         />
 
         <FeatureSection
-          eyebrow="AI Task Breakdown"
-          heading="Turn big, vague tasks into a clear checklist"
-          description="Describe a task in plain language and Claude breaks it into ordered, time-estimated steps with priorities."
+          eyebrow={dict.home.featurePipelineEyebrow}
+          heading={dict.home.featurePipelineHeading}
+          description={dict.home.featurePipelineDescription}
           bullets={[
-            'Example: "Build an e-commerce website" becomes a structured task list',
-            "Each step includes an estimated duration",
-            "Priorities are assigned automatically",
+            dict.home.featurePipelineBullet1,
+            dict.home.featurePipelineBullet2,
+            dict.home.featurePipelineBullet3,
           ]}
-          imageSrc="/ai-breakdown.png"
-          imageAlt="AI task breakdown feature splitting a large task into smaller subtasks"
+          visual={
+            <Image
+              src="/illustrations/leads-pipeline.jpg"
+              alt="Lead pipeline board with columns for new, contacted, quoted, and won leads"
+              width={1168}
+              height={784}
+              className="h-auto w-full"
+            />
+          }
           reversed
         />
 
         <FeatureSection
-          eyebrow="AI Daily Planner"
-          heading="Wake up to an optimized schedule"
-          description="FocusFlow looks at your incomplete tasks, deadlines, and priorities, and builds a realistic plan for the day."
+          eyebrow={dict.home.featureJobsEyebrow}
+          heading={dict.home.featureJobsHeading}
+          description={dict.home.featureJobsDescription}
           bullets={[
-            "Accounts for your current time and remaining hours",
-            "Explains why each task was scheduled when it was",
-            "Adjusts as priorities and deadlines change",
+            dict.home.featureJobsBullet1,
+            dict.home.featureJobsBullet2,
+            dict.home.featureJobsBullet3,
           ]}
-          imageSrc="/ai-daily-plan.png"
-          imageAlt="AI-generated daily schedule with time blocks for each task"
+          visual={
+            <Image
+              src="/illustrations/jobs-tasks.jpg"
+              alt="Jobs and tasks checklist with status and due dates"
+              width={1168}
+              height={784}
+              className="h-auto w-full"
+            />
+          }
         />
 
         <FeatureSection
-          eyebrow="Productivity Analytics"
-          heading="See where your time actually goes"
-          description="Track completion rates, time spent per project, and productivity trends over time."
+          eyebrow={dict.home.featureApptEyebrow}
+          heading={dict.home.featureApptHeading}
+          description={dict.home.featureApptDescription}
           bullets={[
-            "Weekly and monthly trend views",
-            "Breakdown by project and priority",
-            "Spot patterns in your focus time",
+            dict.home.featureApptBullet1,
+            dict.home.featureApptBullet2,
+            dict.home.featureApptBullet3,
           ]}
-          imageSrc="/analytics.png"
-          imageAlt="Productivity analytics dashboard with charts of completed tasks over time"
-          reversed
-        />
-
-        <FeatureSection
-          eyebrow="Projects & Tasks"
-          heading="Organize work the way you think"
-          description="Group tasks into projects, set deadlines, and keep everything in one place."
-          bullets={[
-            "Flexible project structure",
-            "Filter and sort by priority or deadline",
-            "Quick task creation from anywhere",
-          ]}
-          imageSrc="/projects-tasks.png"
-          imageAlt="Projects and tasks list view in the FocusFlow dashboard"
-        />
-
-        <FeatureSection
-          eyebrow="Cross-device sync"
-          heading="Your plan, everywhere you are"
-          description="Start on your laptop, check your plan on your phone. Everything stays in sync automatically."
-          bullets={[
-            "Real-time sync across devices",
-            "Secure authentication",
-            "Works in any modern browser",
-          ]}
-          imageSrc="/cross-device-sync.png"
-          imageAlt="FocusFlow dashboard synced across a laptop and a phone"
+          visual={
+            <Image
+              src="/illustrations/appointments.jpg"
+              alt="Calendar view of scheduled appointments for the day"
+              width={1168}
+              height={784}
+              className="h-auto w-full"
+            />
+          }
           reversed
         />
 

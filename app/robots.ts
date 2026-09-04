@@ -9,9 +9,11 @@ export default function robots(): MetadataRoute.Robots {
         allow: ["/", "/features", "/pricing", "/about", "/login", "/signup"],
         disallow: [
           "/dashboard",
+          "/customers",
+          "/leads",
+          "/jobs",
           "/tasks",
-          "/projects",
-          "/ai-planner",
+          "/appointments",
           "/analytics",
           "/settings",
           "/api",

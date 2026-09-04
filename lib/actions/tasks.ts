@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { Task, TaskInsert, TaskPriority, TaskStatus, TaskUpdate } from "@/lib/database.types";
+import { CreateTaskSchema, UpdateTaskSchema, type CreateTaskInput } from "@/lib/validation/tasks";
+import type { Task, TaskInsert, TaskStatus, TaskUpdate } from "@/lib/database.types";
 
 type ActionResult<T = undefined> = { data: T; error: null } | { data: null; error: string };
 
@@ -25,23 +26,7 @@ async function requireUser() {
 // Create
 // ---------------------------------------------------------------------------
 
-const CreateTaskSchema = z.object({
-  title: z.string().trim().min(1, "Title is required.").max(200),
-  description: z.string().trim().max(2000).optional().or(z.literal("")),
-  priority: z.enum(["low", "medium", "high"]),
-  projectId: z.string().uuid().optional().or(z.literal("")),
-  deadline: z.string().optional().or(z.literal("")), // datetime-local string
-  estimatedMinutes: z.number().int().positive().max(24 * 60).optional(),
-});
-
-export async function createTask(input: {
-  title: string;
-  description?: string;
-  priority: TaskPriority;
-  projectId?: string;
-  deadline?: string;
-  estimatedMinutes?: number;
-}): Promise<ActionResult<Task>> {
+export async function createTask(input: CreateTaskInput): Promise<ActionResult<Task>> {
   const parsed = CreateTaskSchema.safeParse(input);
   if (!parsed.success) {
     return { data: null, error: parsed.error.errors[0]?.message ?? "Invalid task." };
@@ -55,10 +40,11 @@ export async function createTask(input: {
       title: parsed.data.title,
       description: parsed.data.description ? parsed.data.description : null,
       priority: parsed.data.priority,
-      project_id: parsed.data.projectId ? parsed.data.projectId : null,
+      job_id: parsed.data.jobId ? parsed.data.jobId : null,
+      customer_id: parsed.data.customerId ? parsed.data.customerId : null,
+      assignee: parsed.data.assignee ? parsed.data.assignee : null,
       deadline: parsed.data.deadline ? new Date(parsed.data.deadline).toISOString() : null,
       estimated_minutes: parsed.data.estimatedMinutes ?? null,
-      source: "manual",
     };
 
     // Cast the query-builder step (not the payload) to sidestep a
@@ -76,6 +62,8 @@ export async function createTask(input: {
 
     revalidatePath("/tasks");
     revalidatePath("/dashboard");
+    if (payload.job_id) revalidatePath(`/jobs/${payload.job_id}`);
+    if (payload.customer_id) revalidatePath(`/customers/${payload.customer_id}`);
     return { data: data as Task, error: null };
   } catch (err) {
     return { data: null, error: toErrorMessage(err) };
@@ -86,17 +74,6 @@ export async function createTask(input: {
 // Update
 // ---------------------------------------------------------------------------
 
-const UpdateTaskSchema = z.object({
-  id: z.string().uuid(),
-  title: z.string().trim().min(1, "Title is required.").max(200).optional(),
-  description: z.string().trim().max(2000).nullable().optional(),
-  priority: z.enum(["low", "medium", "high"]).optional(),
-  status: z.enum(["todo", "in_progress", "done"]).optional(),
-  projectId: z.string().uuid().nullable().optional(),
-  deadline: z.string().nullable().optional(),
-  estimatedMinutes: z.number().int().positive().max(24 * 60).nullable().optional(),
-});
-
 export async function updateTask(
   input: z.infer<typeof UpdateTaskSchema>
 ): Promise<ActionResult<Task>> {
@@ -105,21 +82,33 @@ export async function updateTask(
     return { data: null, error: parsed.error.errors[0]?.message ?? "Invalid update." };
   }
 
-  const { id, deadline, projectId, estimatedMinutes, title, description, priority, status } =
-    parsed.data;
+  const {
+    id,
+    deadline,
+    jobId,
+    customerId,
+    assignee,
+    estimatedMinutes,
+    title,
+    description,
+    priority,
+    status,
+  } = parsed.data;
 
   try {
     const { supabase, user } = await requireUser();
 
     // Map camelCase input fields to their snake_case DB columns explicitly —
-    // spreading the parsed object would send "projectId"/"estimatedMinutes"
-    // as literal (nonexistent) column names.
+    // spreading the parsed object would send "jobId"/"estimatedMinutes" as
+    // literal (nonexistent) column names.
     const patch: TaskUpdate = {};
     if (title !== undefined) patch.title = title;
     if (description !== undefined) patch.description = description;
     if (priority !== undefined) patch.priority = priority;
     if (status !== undefined) patch.status = status;
-    if (projectId !== undefined) patch.project_id = projectId;
+    if (jobId !== undefined) patch.job_id = jobId;
+    if (customerId !== undefined) patch.customer_id = customerId;
+    if (assignee !== undefined) patch.assignee = assignee;
     if (estimatedMinutes !== undefined) patch.estimated_minutes = estimatedMinutes;
     if (deadline !== undefined) {
       patch.deadline = deadline ? new Date(deadline).toISOString() : null;
@@ -138,6 +127,8 @@ export async function updateTask(
 
     revalidatePath("/tasks");
     revalidatePath("/dashboard");
+    if (data?.job_id) revalidatePath(`/jobs/${data.job_id}`);
+    if (data?.customer_id) revalidatePath(`/customers/${data.customer_id}`);
     return { data: data as Task, error: null };
   } catch (err) {
     return { data: null, error: toErrorMessage(err) };
@@ -172,8 +163,7 @@ export async function deleteTask(id: string): Promise<ActionResult<true>> {
 }
 
 // ---------------------------------------------------------------------------
-// Read (used by the AI planner / dashboard later — kept here alongside the
-// rest of the task data-access layer)
+// Read
 // ---------------------------------------------------------------------------
 
 export async function listIncompleteTasks(): Promise<ActionResult<Task[]>> {
